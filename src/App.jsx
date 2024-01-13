@@ -1,5 +1,19 @@
 import * as React from "react";
 
+const useStorageState = (initialState) => {
+  const [value, setValue] = React.useState(
+    localStorage.getItem("value") || initialState
+  );
+
+  React.useEffect(() => {
+    localStorage.setItem("value", CSSUnitValue);
+  }, [value]);
+
+  return [value, setValue]
+}
+
+
+
 // Main App component
 const App = () => {
   // Sample data for stories
@@ -22,7 +36,7 @@ const App = () => {
     },
   ];
   // State hook for search term
-  const [searchTerm, setSearchTerm] = React.useState("React");
+  const [searchTerm, setSearchTerm] = useStorageState("React")
 
   // Handler for search input changes
   const handleSearch = (event) => {
@@ -55,16 +69,13 @@ const Search = ({ search, onSearch }) => (
 );
 
 // List component to display stories
-const List = ({ list }) =>
-(
-    <ul>
-      {list.map((item) => (
-        <Item key={item.objectID} item={item} />
-      ))}
-    </ul>
-  );
-;
-
+const List = ({ list }) => (
+  <ul>
+    {list.map((item) => (
+      <Item key={item.objectID} item={item} />
+    ))}
+  </ul>
+);
 // Item component for displaying each story
 const Item = ({ item }) => {
   return (
