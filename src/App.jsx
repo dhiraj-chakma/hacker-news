@@ -39,10 +39,23 @@ const getAsyncStories = () =>
     setTimeout(() => resolve({ data: { stories: initalStories } }), 2000)
   );
 
+const storiesReducer = (state, action) => {
+  switch (action.type) {
+    case "SET_STORIES":
+      return action.payload;
+    case "REMOVE_STORY":
+      return state.filter(
+        (story) => action.payload.objectID !== story.objectID
+      );
+    default:
+      throw new Error();
+  }
+};
+
 // Main App component
 const App = () => {
   // Sample data for stories
-  const [stories, setStories] = React.useState([]);
+  const [stories, dispatchStories] = React.useReducer(storiesReducer, []);
 
   const [isLoading, setIsLoading] = React.useState(false);
   const [isError, setIsError] = React.useState(false);
@@ -53,7 +66,10 @@ const App = () => {
     getAsyncStories()
       .then((result) => {
         setIsLoading(false);
-        setStories(result.data.stories);
+        dispatchStories({
+          type: "SET_STORIES",
+          payload: result.data.stories,
+        });
       })
       .catch(() => setIsError(true));
   }, []);
@@ -71,12 +87,12 @@ const App = () => {
     story.title.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase())
   );
 
-  const handleRemoveStory = (item) =>
-    setStories(
-      stories.filter((story) => {
-        return story.objectID !== item.objectID;
-      })
-    );
+  const handleRemoveStory = (item) => {
+    dispatchStories({
+      type: "REMOVE_STORY",
+      payload: item,
+    });
+  };
 
   // Render the main App component
   return (
@@ -94,7 +110,7 @@ const App = () => {
       </InputWithLabel>
       <hr />
 
-      {isError && <p>something went wrong....</p>}
+      {isError && <p>something went wrong....m</p>}
 
       {isLoading ? (
         <p> Loading.....</p>
