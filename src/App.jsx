@@ -1,42 +1,65 @@
 import * as React from "react";
 
-const useStorageState = (initialState) => {
+// Custom hook for managing state in localStorage
+const useStorageState = (key, initialState) => {
+  // State hook that initializes from localStorage or provided initial state
   const [value, setValue] = React.useState(
-    localStorage.getItem("value") || initialState
+    localStorage.getItem(key) || initialState
   );
 
+  // Effect hook to update localStorage whenever the state changes
   React.useEffect(() => {
-    localStorage.setItem("value", CSSUnitValue);
-  }, [value]);
+    localStorage.setItem(key, value);
+  }, [value, key]);
 
-  return [value, setValue]
-}
+  // Return the state value and setter function
+  return [value, setValue];
+};
 
-
+const initalStories = [
+  {
+    title: "React",
+    url: "https://reactjs.org/",
+    author: "Jordan Walke",
+    num_comments: 3,
+    points: 4,
+    objectID: 0,
+  },
+  {
+    title: "Redux",
+    url: "https://redux.js.org/",
+    author: "Dan Abramov, Andrew Clark",
+    num_comments: 2,
+    points: 5,
+    objectID: 1,
+  },
+];
+const getAsyncStories = () =>
+  new Promise((resolve) =>
+    setTimeout(() => resolve({ data: { stories: initalStories } }), 2000)
+  );
 
 // Main App component
 const App = () => {
   // Sample data for stories
-  const stories = [
-    {
-      title: "React",
-      url: "https://reactjs.org/",
-      author: "Jordan Walke",
-      num_comments: 3,
-      points: 4,
-      objectID: 0,
-    },
-    {
-      title: "Redux",
-      url: "https://redux.js.org/",
-      author: "Dan Abramov, Andrew Clark",
-      num_comments: 2,
-      points: 5,
-      objectID: 1,
-    },
-  ];
-  // State hook for search term
-  const [searchTerm, setSearchTerm] = useStorageState("React")
+  const [stories, setStories] = React.useState([]);
+
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isError, setIsError] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsLoading(true);
+
+    getAsyncStories()
+      .then((result) => {
+        setIsLoading(false);
+        setStories(result.data.stories);
+      })
+      .catch(() => setIsError(true));
+  }, []);
+
+  // State hook for search term, persisted in localStorage
+  const [searchTerm, setSearchTerm] = useStorageState("search", "React");
 
   // Handler for search input changes
   const handleSearch = (event) => {
@@ -48,46 +71,93 @@ const App = () => {
     story.title.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase())
   );
 
+  const handleRemoveStory = (item) =>
+    setStories(
+      stories.filter((story) => {
+        return story.objectID !== item.objectID;
+      })
+    );
+
   // Render the main App component
   return (
-    <div>
+    <>
       <h1>My Hacker Stories</h1>
-      <Search onSearch={handleSearch} search={searchTerm} />
+
+      <InputWithLabel
+        id="search"
+        label="Search"
+        onInputChange={handleSearch}
+        isFocused
+        value={searchTerm}
+      >
+        <strong>Search:</strong>
+      </InputWithLabel>
       <hr />
 
-      <List list={searchedStories} />
-    </div>
+      {isError && <p>something went wrong....</p>}
+
+      {isLoading ? (
+        <p> Loading.....</p>
+      ) : (
+        <List list={searchedStories} onRemoveItem={handleRemoveStory} />
+      )}
+    </>
   );
 };
 
 // Search component for input field
-const Search = ({ search, onSearch }) => (
-  <div>
-    <label htmlFor="search">Search: </label>
-    <input id="search" type="text" value={search} onChange={onSearch} />
-  </div>
-);
+const InputWithLabel = ({
+  id,
+  children,
+  isFocused,
+  onInputChange,
+  type = "text",
+  value,
+}) => {
+  const inputRef = React.useRef();
+
+  React.useEffect(() => {
+    if (isFocused && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isFocused]);
+  return (
+    <>
+      <label htmlFor="id">{children} </label>&nbsp;
+      <input
+        ref={inputRef}
+        id="id"
+        type={type}
+        value={value}
+        autoFocus={isFocused}
+        onChange={onInputChange}
+      />
+    </>
+  );
+};
 
 // List component to display stories
-const List = ({ list }) => (
+const List = ({ list, onRemoveItem }) => (
   <ul>
     {list.map((item) => (
-      <Item key={item.objectID} item={item} />
+      <Item key={item.objectID} item={item} onRemoveItem={onRemoveItem} />
     ))}
   </ul>
 );
 // Item component for displaying each story
-const Item = ({ item }) => {
+const Item = ({ item, onRemoveItem }) => {
   return (
     <li>
       <span>
-        {" "}
         <a href={item.url}>{item.title}</a>
       </span>
 
       <span>{item.author}</span>
       <span>{item.num_comments}</span>
       <span>{item.points}</span>
+      <button type="button" onClick={() => onRemoveItem(item)}>
+        Dismiss
+      </button>
     </li>
   );
 };
