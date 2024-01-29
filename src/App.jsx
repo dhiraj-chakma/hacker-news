@@ -1,6 +1,7 @@
 import * as React from "react";
 
-// Custom hook for managing state in localStorage
+// Custom hook for managing state in localStorage.
+// It initializes the state from localStorage or uses a provided initial state.
 const useStorageState = (key, initialState) => {
   // State hook that initializes from localStorage or provided initial state
   const [value, setValue] = React.useState(
@@ -16,62 +17,63 @@ const useStorageState = (key, initialState) => {
   return [value, setValue];
 };
 
-const initalStories = [
-  {
-    title: "React",
-    url: "https://reactjs.org/",
-    author: "Jordan Walke",
-    num_comments: 3,
-    points: 4,
-    objectID: 0,
-  },
-  {
-    title: "Redux",
-    url: "https://redux.js.org/",
-    author: "Dan Abramov, Andrew Clark",
-    num_comments: 2,
-    points: 5,
-    objectID: 1,
-  },
-];
-const getAsyncStories = () =>
-  new Promise((resolve) =>
-    setTimeout(() => resolve({ data: { stories: initalStories } }), 2000)
-  );
 
+
+const [stories_fetch_init, stories_fetch_success, stories_fetch_failure,remove_story] = ["STORIES_FETCH_INIT", "STORIES_FETCHT_SUCCESS","STORIES_FETCH_FAILURE","REMOVE_STORY"];
+
+// Reducer function for managing stories state
 const storiesReducer = (state, action) => {
   switch (action.type) {
-    case "SET_STORIES":
-      return action.payload;
-    case "REMOVE_STORY":
-      return state.filter(
-        (story) => action.payload.objectID !== story.objectID
-      );
+    case stories_fetch_init:
+      return {
+        ...state,
+        isLoading: true,
+        isError: false
+      };
+    case stories_fetch_success:
+      return {
+        ...state,
+        isLoading: false,
+        isError: false,
+        data: action.payload
+      }
+      case stories_fetch_failure:
+        return {
+          ...state,
+          isLoading: false,
+          isError: true
+        }
+        case remove_story:
+          return {
+            ...state,
+            data:state.data.filter(
+            (story) => action.payload.objectID !== story.objectID
+          )}
     default:
       throw new Error();
   }
 };
 
+const API_ENDPOINT = "https://hn.algolia.com/api/v1/search?query="
+
 // Main App component
 const App = () => {
-  // Sample data for stories
-  const [stories, dispatchStories] = React.useReducer(storiesReducer, []);
+  // Using useReducer for stories state management
+  const [stories, dispatchStories] = React.useReducer(storiesReducer, {data: [], isLoading: false, isError:false});
 
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [isError, setIsError] = React.useState(false);
-
+  // Effect hook for fetching stories on component mount
   React.useEffect(() => {
-    setIsLoading(true);
+    dispatchStories({type: stories_fetch_init})
 
-    getAsyncStories()
-      .then((result) => {
-        setIsLoading(false);
+    fetch(`${API_ENDPOINT}react`)
+    .then(response=>response.json()).then(result=>{
         dispatchStories({
-          type: "SET_STORIES",
-          payload: result.data.stories,
-        });
+          type: stories_fetch_success,
+          payload: result.hits,
+        })
       })
-      .catch(() => setIsError(true));
+      .catch(() =>
+      dispatchStories({type: "STORIES_FETCH_FAILURE"}));
   }, []);
 
   // State hook for search term, persisted in localStorage
@@ -82,11 +84,12 @@ const App = () => {
     setSearchTerm(event.target.value);
   };
 
-  // Filter stories based on search term
-  const searchedStories = stories.filter((story) =>
+  // Function to filter stories based on the search term
+  const searchedStories = stories.data.filter((story) =>
     story.title.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase())
   );
 
+  // Handler for removing a story
   const handleRemoveStory = (item) => {
     dispatchStories({
       type: "REMOVE_STORY",
@@ -110,9 +113,9 @@ const App = () => {
       </InputWithLabel>
       <hr />
 
-      {isError && <p>something went wrong....m</p>}
+      {stories.isError && <p>something went wrong....</p> }
 
-      {isLoading ? (
+      {stories.isLoading ? (
         <p> Loading.....</p>
       ) : (
         <List list={searchedStories} onRemoveItem={handleRemoveStory} />
@@ -142,7 +145,7 @@ const InputWithLabel = ({
       <label htmlFor="id">{children} </label>&nbsp;
       <input
         ref={inputRef}
-        id="id"
+        id={id}
         type={type}
         value={value}
         autoFocus={isFocused}
